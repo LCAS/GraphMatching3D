@@ -1,6 +1,6 @@
 import numpy as np
 from main import create_graph_from_adjacency_matrix, create_adjacency_matrix
-from main import create_dense, match_polyline_graphs, confusion_matrix, corresponding_tp
+from main import create_dense, match_polyline_graphs, confusion_matrix, corresponding_tp, split_into_branches, split_into_fragments
 
 # test dense 
 def test_create_dense():
@@ -90,7 +90,6 @@ def test_match_graphs():
     assert match_dict[2] == 2
     assert match_dict[3] == 3
     assert match_dict[4] == 4
-
 
 def test_match_graphs2():
     node0 = [1, 2, 3]
@@ -224,6 +223,84 @@ def test_match_graphs_diff_density():
     match_dict, tp_e = match_polyline_graphs(g1, g2, nodes1, nodes2, 1)   
 
     assert np.array_equal(tp_e, [0, 1, 2, 3, 4, 5, 6, 8]) 
+
+def test_match_graphs_fractured():
+    a = [0,0,0]
+    b = [1,0,0]
+    c = [2,0,0]
+    
+    # fracture here
+    d = [3,0,0]
+    e = [4,0,0]
+    nodes = np.array([a,b,c,d,e])
+    edges = np.array([[0,1],[1,2],[3,4]])
+
+    adj_matrix = create_adjacency_matrix(edges,nodes)
+    g1 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    match_dict, tp_e = match_polyline_graphs(g1, g1, nodes, nodes, 1) 
+
+    expected = [0,1,2,3,4]
+    assert np.array_equal(expected,tp_e)
+
+def test_match_graphs_fracture_and_branch():
+    a = [0,0,0] 
+    b = [1,0,0] # branch-d-e
+    c = [2,0,0] 
+
+    # brach here
+    d = [1,1,0] 
+    e = [1,2,0]  
+
+    # fracture here - these are NOT connected
+    f = [3,0,0]
+    g = [4,0,0]
+    nodes = np.array([a,b,c,d,e,f,g])
+    edges = np.array([[0,1],[1,2],[1,3],[3,4],[5,6]])
+
+    adj_matrix = create_adjacency_matrix(edges,nodes)
+    g1 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    # nodes2 = np.array([a,b,c,d,e,d,[4.4,0,0]])
+    # edges2 = np.array([[0,1],[1,2],[3,4],[1,5],[5,6]])
+
+    # adj_matrix = create_adjacency_matrix(edges2,nodes2)
+    # g2 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    match_dict, tp_e = match_polyline_graphs(g1, g1, nodes, nodes, 1) 
+
+    expected = [0,1,2,3,4,5,6]
+    assert np.array_equal(expected,tp_e)
+
+def test_meta_split_into_branches():
+    a = [0,0,0] 
+    b = [1,0,0] # branch-d-e
+    c = [2,0,0] 
+
+    # brach here
+    d = [1,1,0] 
+    e = [1,2,0]  
+
+    # fracture here - these are NOT connected
+    f = [3,0,0]
+    g = [4,0,0]
+    nodes = np.array([a,b,c,d,e,f,g])
+    edges = np.array([[0,1],[1,2],[1,3],[3,4],[5,6]])
+
+    adj_matrix = create_adjacency_matrix(edges,nodes)
+    g1 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    branches = []
+    g_frag = split_into_fragments(g1)   
+
+    for frag in g_frag: 
+        b =  split_into_branches(frag)
+        branches.extend(b)
+    expected = [[0,1],[1,2],[1,3,4],[5,6]]
+    # print(branches)
+    # assert np.array_equal(branches,expected)
+    assert branches == expected
+
 
 #  --- confusion matrix
 def test_match_graphs_diff_density():
@@ -472,8 +549,5 @@ def test_confusion_matrix3():
     assert len(tp) + len(fn) == len(g1)
     assert len(tp) + len(fp) == len(g2)
 
-
-
-
-
+test_meta_split_into_branches()
 

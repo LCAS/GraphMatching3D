@@ -199,6 +199,38 @@ def find_contiguous_sections(graph, nodes):
     
     return contiguous_sections
 
+
+def split_into_fragments(graph):
+    num_nodes = len(graph)
+    visited = [False] * num_nodes
+    components = []
+
+    def dfs(graph, node, visited, component):
+        visited[node] = True
+        component.append(node)
+        
+        for neighbor in graph[node]:
+            if not visited[neighbor]:
+                dfs(graph, neighbor, visited, component)
+
+    for node in range(num_nodes):
+        if not visited[node]:
+            component = []
+            dfs(graph, node, visited, component)
+            components.append(component)
+
+    sub_graphs = []
+    for fragment in components:
+        g = {}
+        
+        for i in fragment:
+            g[i] = graph[i]
+        
+        sub_graphs.append(g)
+
+    return sub_graphs
+
+
 def split_into_branches(graph):
     branch_nodes = find_branch_nodes(graph)
     branches = None
@@ -246,8 +278,8 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
     # find lines between the nodes in the gt
     line_segments = [] 
      
-    contiguous = split_into_branches(graph1)
-    
+    contiguous = split_into_branches(graph1) # does this cover the case where the graph is fractured
+        
     # print(contiguous)
     for i in range(0,len(contiguous)):  
         contig = contiguous[i]
