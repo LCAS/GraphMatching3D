@@ -85,6 +85,7 @@ def update_adjacency_matrix(old_matrix, s, new_edges, old_edges):
     return adj_matrix
 
 def create_dense(nodes, edges, s = 0.5, return_adj=False):
+    """Create a dense graph by breaking up any segments that are longer than l."""
 
     lengths = np.array([distance(nodes, e) for e in edges])
     
