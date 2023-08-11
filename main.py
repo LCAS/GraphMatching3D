@@ -278,7 +278,9 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
     # find lines between the nodes in the gt
     line_segments = [] 
      
-    # contiguous = split_into_branches(graph1) # does this cover the case where the graph is fractured
+    # identify contiguous sections and check if there are points on g2 that match g1 near these lines
+    # these are tp but not tp that we count (so we can compare again the same number of tp across 
+    # the diff algs)
     contiguous = []
     g_frag = split_into_fragments(graph1)   
 
@@ -305,6 +307,8 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
             if point_near_line_segment(nodes2[i], A, B, line_dist_thresh): # distance from polyline
                 g2_tp.append(i)
 
+    
+    # compute the cost matrix and find the best fit 
     cost_matrix = np.ones((len(graph1.keys()), len(graph2.keys()))) * 1000
     for k1 in graph1.keys():        
         for k2 in graph2.keys():         
