@@ -278,7 +278,13 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
     # find lines between the nodes in the gt
     line_segments = [] 
      
-    contiguous = split_into_branches(graph1) # does this cover the case where the graph is fractured
+    # contiguous = split_into_branches(graph1) # does this cover the case where the graph is fractured
+    contiguous = []
+    g_frag = split_into_fragments(graph1)   
+
+    for frag in g_frag: 
+        b =  split_into_branches(frag)
+        contiguous.extend(b)
         
     # print(contiguous)
     for i in range(0,len(contiguous)):  
