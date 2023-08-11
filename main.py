@@ -9,9 +9,6 @@ def distance(nodes, edges):
     p1 = nodes[e1]
     return math.dist(p0, p1)
 
-def dot_product(v1, v2):
-    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
-
 def magnitude(vector):
     return math.sqrt(sum(pow(element, 2) for element in vector))
 
@@ -163,8 +160,8 @@ def point_near_line_segment(P,A,B,t):
     vector_AC = (x - x1, y - y1, z - z1)
 
     # Calculate the projection P onto vector AB
-    dot_AB_AB = dot_product(vector_AB, vector_AB)
-    dot_AC_AB = dot_product(vector_AC, vector_AB)
+    dot_AB_AB = np.dot(vector_AB, vector_AB)
+    dot_AC_AB = np.dot(vector_AC, vector_AB)
     scalar = dot_AC_AB / dot_AB_AB
     projection_P = (vector_AB[0] * scalar, vector_AB[1] * scalar, vector_AB[2] * scalar)
 
