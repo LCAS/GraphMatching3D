@@ -10,7 +10,8 @@ def distance(nodes, edges):
     return math.dist(p0, p1)
 
 def magnitude(vector):
-    return math.sqrt(sum(pow(element, 2) for element in vector))
+    # return math.sqrt(sum(pow(element, 2) for element in vector))
+    return np.linalg.norm(vector)
 
 # graph utils
 def create_adjacency_matrix(edges, nodes):
