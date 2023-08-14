@@ -1,9 +1,9 @@
 import numpy as np
 
-from main import create_graph_from_adjacency_matrix, create_adjacency_matrix
+from graph_utils import create_graph_from_adjacency_matrix, create_adjacency_matrix
 
 # tested functions
-from main import (confusion_matrix, corresponding_tp, create_dense,
+from graph_compare import (confusion_matrix, corresponding_tp, create_dense,
                   find_all_paths_between_leaf_nodes, find_contiguous_sections,
                   find_length_matched_path, match_polyline_graphs,
                   split_into_branches, split_into_fragments)
