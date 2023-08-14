@@ -301,6 +301,38 @@ def test_meta_split_into_branches():
     # assert np.array_equal(branches,expected)
     assert branches == expected
 
+def test_match_graphs3():
+    node0 = [1,0,0] # matches with 1,0,0.1
+    node1 = [2,0,0]
+    node2 = [3,0,0]
+    node3 = [4,0,0]
+    node4 = [5,0,0]
+    nodes1 = np.array([node0, node1, node2, node3, node4])
+    edges1 = np.array([[0, 1], [1, 2], [2, 3], [3,4]])
+
+    adj_matrix = create_adjacency_matrix(edges1,nodes1)
+    g1 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    node0 = [0.5,0,0]
+    node1 = [1,0,0.1]
+    node2 = [6, 7, 10]
+    node3 = [20,20,20]   
+    nodes2 = np.array([node0, node1, node2, node3])
+    edges2 = np.array([[0, 1], [1, 2], [2, 3]])
+
+    
+    adj_matrix = create_adjacency_matrix(edges2,nodes2)
+    g2 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    match_dict,_ = match_polyline_graphs(g1, g2, nodes1, nodes2, 1)
+    print(match_dict)
+
+    assert match_dict[0] == 1
+    assert match_dict[1] == -1
+    assert match_dict[2] == -1
+    assert match_dict[3] == -1
+    assert match_dict[4] == -1
+
 
 #  --- confusion matrix
 def test_match_graphs_diff_density():
@@ -548,6 +580,4 @@ def test_confusion_matrix3():
 
     assert len(tp) + len(fn) == len(g1)
     assert len(tp) + len(fp) == len(g2)
-
-test_meta_split_into_branches()
 
