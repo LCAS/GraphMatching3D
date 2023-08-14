@@ -1,6 +1,6 @@
 import numpy as np
 from main import create_graph_from_adjacency_matrix, create_adjacency_matrix
-from main import create_dense, match_polyline_graphs, confusion_matrix, corresponding_tp, split_into_branches, split_into_fragments
+from main import create_dense, match_polyline_graphs, confusion_matrix, corresponding_tp, split_into_branches, split_into_fragments, find_contiguous_sections
 
 # test dense 
 def test_create_dense():
@@ -580,4 +580,33 @@ def test_confusion_matrix3():
 
     assert len(tp) + len(fn) == len(g1)
     assert len(tp) + len(fp) == len(g2)
+
+# --- find contiguous sections
+
+def test_find_contiguous_on_simple():
+    graph = {0: [1], 1: [0,2], 2: [1,3], 3:[2]}
+    contig = find_contiguous_sections(graph, [0,1,2,3])
+    assert np.array_equal(contig, [[0,1,2,3]]), contig
+
+    contig = find_contiguous_sections(graph, [0,2,3])     
+    assert contig == [[0], [2,3]]    
+
+def test_find_contiguous_on_branched():
+    graph = {0: [1], 1: [0, 2, 4], 2: [1,3], 3:[2], 4: [1,5], 5: [4]}
+    contig = find_contiguous_sections(graph, [0,1,2,3,4,5])
+    assert contig == [[0,1,2,3,4,5]], contig
+
+    contig = find_contiguous_sections(graph, [5,4,3,2,1,0])
+    assert contig == [[0,1,2,3,4,5]], contig
+
+    contig = find_contiguous_sections(graph, [0,1,3,4,5])    
+    assert contig == [[0,1,4,5],[3]], contig
+
+def test_find_contiguous_on_fractured():
+    graph = {0: [1], 1: [0,2], 2: [1], 3: [4], 4: [3,5], 5: [4]}
+    
+    # 0-1-2  X  3-4-5
+    contig = find_contiguous_sections(graph, list(graph.keys()))
+    assert contig == [[0,1,2],[3,4,5]], contig
+
 

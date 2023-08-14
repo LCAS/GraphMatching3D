@@ -199,7 +199,6 @@ def find_contiguous_sections(graph, nodes):
     
     return contiguous_sections
 
-
 def split_into_fragments(graph):
     num_nodes = len(graph)
     visited = [False] * num_nodes
@@ -229,7 +228,6 @@ def split_into_fragments(graph):
         sub_graphs.append(g)
 
     return sub_graphs
-
 
 def split_into_branches(graph):
     branch_nodes = find_branch_nodes(graph)
@@ -270,12 +268,12 @@ def split_into_branches(graph):
 def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thresh = 0.25):
     """
     Matches graph2 against graph 1 (GT)
-    Returns a dictionary of the matched indices between the two graphs
+    Returns a dictionary of the 1-1 matched indices between the two graphs
     """
     match_dict = {}
     keys = graph1.keys()   
 
-    # find lines between the nodes in the gt
+    # PART 1: find lines between the nodes in the gt
     line_segments = [] 
      
     # identify contiguous sections and check if there are points on g2 that match g1 near these lines
@@ -288,7 +286,6 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
         b =  split_into_branches(frag)
         contiguous.extend(b)
         
-    # print(contiguous)
     for i in range(0,len(contiguous)):  
         contig = contiguous[i]
        
@@ -308,16 +305,18 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
                 g2_tp.append(i)
 
     
-    # compute the cost matrix and find the best fit 
+    # PART 2: compute the cost matrix and find the best 1-1 fit 
     cost_matrix = np.ones((len(graph1.keys()), len(graph2.keys()))) * 1000
     for k1 in graph1.keys():        
         for k2 in graph2.keys():         
             d = np.linalg.norm(nodes1[k1] - nodes2[k2])            
-            if d < thresh:
-                cost_matrix[k1][k2] = d         
+            if d <= thresh:
+                cost_matrix[k1][k2] = d 
+
+          
                 
     row_ind, col_ind = linear_sum_assignment(cost_matrix, maximize=False) # what if there are unmatched ones, they need to come out as -1
-          
+
     for i in zip(row_ind,col_ind):
         k,v = i
         match_dict[k] = v 
@@ -325,13 +324,8 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
     for k1 in graph1.keys():        
         if len(np.unique(cost_matrix[k1,:])) == 1 or k1 not in match_dict.keys():
             # unmatched
-            match_dict[k1] = -1 
-            
-    for k in keys:
-        if k not in match_dict.keys():
-            print(k)
-    
-              
+            match_dict[k1] = -1          
+                   
     return match_dict, list(set(g2_tp))
 
 # --- confusion matrix
