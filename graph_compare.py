@@ -2,8 +2,8 @@ import numpy as np
 import math
 from scipy.optimize import linear_sum_assignment
 
-from utils import *
-from graph_utils import *
+from .utils import *
+from .graph_utils import *
 
 # functions
 
