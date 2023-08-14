@@ -14,6 +14,13 @@ def magnitude(vector):
     return np.linalg.norm(vector)
 
 # graph utils
+
+def normalize_edge(edge):
+    n1, n2,  = edge
+    if n1 > n2: # use a custom compare function if desired
+        n1, n2 = n2, n1
+    return (n1, n2)
+
 def create_adjacency_matrix(edges, nodes):
     # Initialize an empty adjacency matrix
     num_vertices = len(nodes)
@@ -359,3 +366,104 @@ def confusion_matrix(match_dict, g2):
     fp = find_unmatched(match_dict, g2)
    
     return tp,fn, fp
+
+#  --- find length matched path
+
+def find_leaf_nodes(graph):
+    leaf_nodes = []
+    for node in graph:
+        if len(graph[node]) == 1:
+            leaf_nodes.append(node)
+    return leaf_nodes
+
+def dfs_paths(graph, start_node, end_node):
+        stack = [(start_node, [start_node])]
+        paths = []
+
+        while stack:
+            node, path = stack.pop()
+
+            if node == end_node:
+                paths.append(path)
+
+            for neighbor in graph[node]:
+                if neighbor not in path:
+                    stack.append((neighbor, path + [neighbor]))
+
+        return paths
+
+def find_all_paths_between_leaf_nodes(graph):
+    """ Returns a dictionary with keys as tuples of the leaf nodes and values
+    as a list of the path to traverse from the one to the other"""
+
+    all_paths = {}
+    # split into connected sections
+    contig_sections = find_contiguous_sections(graph, list(graph.keys()))   
+    
+    for j in range(0,len(contig_sections)):
+        subgraph = {}
+        for i in contig_sections[j]:      
+            subgraph[i] = graph[i]   
+        
+        # print(subgraph)
+        
+        leaf_nodes = find_leaf_nodes(subgraph)       
+      
+        for start_node in leaf_nodes:        
+            for end_node in leaf_nodes:
+                if start_node != end_node:         
+                    path = list(dfs_paths(subgraph, start_node, end_node))                     
+                    # print(start_node,end_node,path)                              
+                    all_paths[(start_node, end_node)] = path
+
+    # remove entries that are the same in reverse
+    pairs_list = list(all_paths.keys())
+
+    # Create a set to store unique pairs
+    unique_pairs = set()
+
+    # Iterate through the list of tuples and add them to the set (order matters)
+    for pair in pairs_list:
+        if pair not in unique_pairs and (pair[1], pair[0]) not in unique_pairs:
+            unique_pairs.add(pair)
+
+    # Convert the set back to a list of tuples
+    unique_pairs_list = list(unique_pairs)
+    
+    filtered_graph = {}
+    for k in unique_pairs_list:
+        filtered_graph[k] = all_paths[k]  
+    
+  
+    return {k: v[0] for k, v in filtered_graph.items() if len(v) != 0}
+
+def sum_path(graph, adj_matrix, start, end):
+    dist = 0
+
+    path = list(dfs_paths(graph,start,end))[0]
+    path.append(end)    
+
+    for i in range(0,len(path)-1):
+        e0 =path[i]
+        e1 =path[i+1] 
+        dist += adj_matrix[e0][e1]
+
+    return dist
+
+def find_length_matched_path(graph, adj_matrix, gt_dist):
+    """Given a graph, find the leaf-leaf length that is closest to a reference"""
+   
+    all_paths = find_all_paths_between_leaf_nodes(
+        graph
+    )  # (edgepair) : [[edge0, edge1...]]
+    end_pairs = all_paths.keys()
+    unique_edges = list(set(map(normalize_edge, end_pairs)))
+
+    est_dists = [sum_path(graph, adj_matrix, e0, e1) for e0, e1 in unique_edges]
+    dist_err = np.array([np.abs(gt_dist - d) for d in est_dists])
+
+    i_min = np.argmin(dist_err)
+
+    matching_segment_path = all_paths[unique_edges[i_min]]   
+
+    return est_dists[i_min], matching_segment_path

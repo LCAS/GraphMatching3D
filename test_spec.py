@@ -1,6 +1,13 @@
 import numpy as np
+
 from main import create_graph_from_adjacency_matrix, create_adjacency_matrix
-from main import create_dense, match_polyline_graphs, confusion_matrix, corresponding_tp, split_into_branches, split_into_fragments, find_contiguous_sections
+
+# tested functions
+from main import (confusion_matrix, corresponding_tp, create_dense,
+                  find_all_paths_between_leaf_nodes, find_contiguous_sections,
+                  find_length_matched_path, match_polyline_graphs,
+                  split_into_branches, split_into_fragments)
+
 
 # test dense 
 def test_create_dense():
@@ -609,4 +616,31 @@ def test_find_contiguous_on_fractured():
     contig = find_contiguous_sections(graph, list(graph.keys()))
     assert contig == [[0,1,2],[3,4,5]], contig
 
+# --- find length matched path
 
+def test_find_all_paths_between_leaf_nodes():
+    graph = {0: [1], 1: [0, 2, 4], 2: [1,3], 3:[2], 4: [1,5], 5: [4]}
+    all_paths = find_all_paths_between_leaf_nodes(graph)  
+    assert all_paths == {(0,3): [0,1,2,3], (0, 5): [0,1,4,5], (3,5): [3,2,1,4,5]}, all_paths 
+
+def test_matched_length_path():
+    a = [0,0,0]
+    b = [1,0,0]
+    c = [2,0,0]
+    
+    # fracture here
+    d = [3,0,0]
+    e = [4,0,0]
+
+    nodes = np.array([a,b,c,d,e])
+    edges = np.array([[0,1],[1,2],[3,4]])
+
+    adj = create_adjacency_matrix(edges,nodes)
+    graph = create_graph_from_adjacency_matrix(adj)
+
+    dist_to_match = 5
+    d, path = find_length_matched_path(graph, adj, dist_to_match)
+    assert d == 2, d
+    assert path == [0,1,2], path
+    
+    
