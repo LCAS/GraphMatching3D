@@ -212,14 +212,33 @@ def find_length_matched_path(graph, adj_matrix, gt_dist):
     all_paths = find_all_paths_between_leaf_nodes(
         graph
     )  # (edgepair) : [[edge0, edge1...]]
+
+    # print(all_paths.keys()) # normalise keys
+    # exit()
+
+    
     end_pairs = all_paths.keys()
+    # print(end_pairs)
+  
     unique_edges = list(set(map(normalize_edge, end_pairs)))
+    # print(unique_edges)   
 
-    est_dists = [sum_path(graph, adj_matrix, e0, e1) for e0, e1 in unique_edges]
-    dist_err = np.array([np.abs(gt_dist - d) for d in est_dists])
+    est_dists = [sum_path(graph, adj_matrix, e0, e1) for e0, e1 in unique_edges]    
+    dist_err = np.array([np.abs(gt_dist - d) for d in est_dists])    
 
-    i_min = np.argmin(dist_err)
+    i_min = np.argmin(dist_err) 
+    # print(i_min) 
+    
+    # print(unique_edges[i_min])
+    # print(all_paths.keys())
+    # exit()
 
-    matching_segment_path = all_paths[unique_edges[i_min]]   
+   
+    try:
+        matching_segment_path = all_paths[unique_edges[i_min]]   
+    except:
+        inverted = unique_edges[i_min][1],unique_edges[i_min][0]       
+        matching_segment_path = all_paths[inverted]
+
 
     return est_dists[i_min], matching_segment_path
