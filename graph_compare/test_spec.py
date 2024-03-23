@@ -6,7 +6,7 @@ from graph_utils import create_graph_from_adjacency_matrix, create_adjacency_mat
 from graph_compare import (confusion_matrix, corresponding_tp, create_dense,
                   find_all_paths_between_leaf_nodes, find_contiguous_sections,
                   find_length_matched_path, match_polyline_graphs,
-                  split_into_branches, split_into_fragments)
+                  split_into_branches, split_into_fragments, point_near_line_segment)
 
 
 # test dense 
@@ -145,7 +145,7 @@ def test_match_graphs2():
     assert match_dict[1] == 1
     assert match_dict[2] == 2
     assert match_dict[3] == 3
-    assert match_dict[4] == -1
+    assert match_dict[4] < 0
 
 def test_match_reversed():
     node0 = [1, 2, 3]
@@ -196,7 +196,7 @@ def test_match_reversed():
     assert match_dict[1] == 1, match_dict[1]
     assert match_dict[2] == 2, match_dict[2]
     assert match_dict[3] == 3, match_dict[3]
-    assert match_dict[4] == -1, match_dict[4]
+    assert match_dict[4] < 0, match_dict[4]
 
 def test_match_graphs_diff_density():
     node0 = [0,0,1]
@@ -335,10 +335,10 @@ def test_match_graphs3():
     print(match_dict)
 
     assert match_dict[0] == 1
-    assert match_dict[1] == -1
-    assert match_dict[2] == -1
-    assert match_dict[3] == -1
-    assert match_dict[4] == -1
+    assert match_dict[1] < 0
+    assert match_dict[2] < 0
+    assert match_dict[3] < 0
+    assert match_dict[4] < 0
 
 
 #  --- confusion matrix
@@ -643,4 +643,386 @@ def test_matched_length_path():
     assert d == 2, d
     assert path == [0,1,2], path
     
+# --- test match out of range t but in range t_line for G
+# def plot_points(ax, Xs, alpha=0.1, color="b", label="", s=30, marker="."):
+#     # Plot the data points
+#     ax.scatter(
+#         [X[0] for X in Xs],
+#         [X[1] for X in Xs],
+#         [X[2] for X in Xs],
+#         alpha=alpha,
+#         color=color,
+#         label=label,
+#         s=s,
+#         marker=marker,
+#     )
+
+def test_gt_between_contig_tp():    
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
+    node0 = [1, 0, 0]
+    node1 = [2, 0, 0]
+    node2 = [3, 1, 0]
+    node3 = [4, 0, 0]
+    node4 = [5, 0, 0]
+    nodes1 = np.array([node0, node1, node2, node3, node4])
+    edges1 = np.array([[0, 1], [1, 2], [2, 3], [3,4]])
+
+    adj_matrix = create_adjacency_matrix(edges1,nodes1)
+
+    g1 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    node0 = [1, -1, 0]
+    node1 = [2, -1, 0]
+    node2 = [4, -1, 0]
+    node3 = [5, -1, 0]
+    nodes2 = np.array([node0, node1, node2, node3])
+    edges2 = np.array([[0, 1], [1, 2], [2, 3]])
+
+    adj_matrix = create_adjacency_matrix(edges2,nodes2)
+
+    g2 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    match_thresh = 2
+    t_line = 2
+
+    match_dict, tp_e= match_polyline_graphs(g1, g2, nodes1, nodes2, match_thresh, t_line)
+
+    assert match_dict[0] == 0
+    assert match_dict[1] == 1
+    assert match_dict[2] == -2
+    assert match_dict[3] == 2
+    assert match_dict[4] == 3
+
+    tp, fn, est_fp_matches = confusion_matrix(match_dict, g2)          
+       
+    fp = list(set(g2.keys()) - set(tp_e))
     
+    est_tp_matches = corresponding_tp(match_dict)
+    # est_fp_matches = corresponding_fp(g2.keys(), list(est_tp_matches))       
+
+    assert len(tp) == len(est_tp_matches)
+    assert len(tp) + len(fn) == len(
+        g1.keys()
+    ), f"{len(tp) + len(fn)},{len(g1.keys())}"
+
+    # Report metrics
+    # ---precision and recall
+    display = False
+    false_positives = nodes2[fp] #                
+    true_positives = nodes1[tp] #
+    false_negatives = nodes1[fn] #
+
+    true_positives_e = nodes2[tp_e] 
+    false_positives_e = nodes2[est_fp_matches]
+    
+    if len(true_positives) + len(false_positives) > 0:
+        report_precision = len(true_positives) / (
+            len(true_positives) + len(false_positives)
+        )  # how many of the positives are real
+    else:
+        print('NAN')
+        report_precision = np.nan
+
+    report_recall = len(true_positives) / (
+        len(true_positives) + len(false_negatives)
+    )  # how many of the actual positives were detected
+    if report_precision + report_recall == 0:
+        report_f1 = -1
+    else:
+        report_f1 = (
+            2
+            * report_precision
+            * report_recall
+            / (report_precision + report_recall)
+        )
+
+    # if display:
+        # fig = plt.figure()
+        # ax = fig.add_subplot(projection="3d")
+        # plot_points(ax, true_positives_e, color="lime", alpha=1)
+        # plot_points(ax, false_positives_e, color = 'red', alpha=1)
+
+        # plot_points(ax, true_positives, color="green", alpha=1)
+        # plot_points(ax, false_positives, color="red", alpha=1)            
+
+        # plot_points(ax, false_negatives, color="blue", alpha=1)
+        # plt.show()
+
+def test_gt_between_contig_tp2():    
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
+    node0 = [1, 0, 0]
+    node1 = [2, 0, 0]
+    node2 = [3, 1, 0]
+    node3 = [4, 0, 0]
+    node4 = [5, 0, 0]
+    node5 = [6, 0, 0]
+    node6 = [7, 0, 0]
+    node7 = [8, 0, 0]
+    nodes1 = np.array([node0, node1, node2, node3, node4, node5, node6, node7])
+    edges1 = np.array([[0, 1], [1, 2], [2, 3], [3,4],[4,5],[5,6],[6,7]])
+
+    adj_matrix = create_adjacency_matrix(edges1,nodes1)
+
+    g1 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    node0 = [1, -1, 0]
+    node1 = [2, -1, 0]
+    node2 = [4, -1, 0]
+    node3 = [5, -1, 0]
+    nodes2 = np.array([node0, node1, node2, node3])
+    edges2 = np.array([[0, 1], [1, 2], [2, 3]])
+
+    adj_matrix = create_adjacency_matrix(edges2,nodes2)
+
+    g2 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    match_thresh = 2
+    t_line = 0
+
+    match_dict, tp_e= match_polyline_graphs(g1, g2, nodes1, nodes2, match_thresh, t_line)
+
+    assert match_dict[0] == 0
+    assert match_dict[1] == 1
+    assert match_dict[2] == -1
+    assert match_dict[3] == 2
+    assert match_dict[4] == 3
+    assert match_dict[5] == -1
+    assert match_dict[6] == -1
+    assert match_dict[7] == -1
+
+    match_thresh = 2
+    t_line = 2
+
+    match_dict, tp_e= match_polyline_graphs(g1, g2, nodes1, nodes2, match_thresh, t_line)    
+    
+    assert match_dict[0] == 0
+    assert match_dict[1] == 1
+    assert match_dict[2] == -2
+    assert match_dict[3] == 2
+    assert match_dict[4] == 3
+    assert match_dict[5] == -1
+    assert match_dict[6] == -1
+    assert match_dict[7] == -1
+
+    tp, fn, fp = confusion_matrix(match_dict, g2)
+
+    print(tp)     
+    # print(tp_e)     
+       
+    # fp = list(set(g2.keys()) - set(tp_e))
+    
+    est_tp_matches = corresponding_tp(match_dict)
+    # est_fp_matches = corresponding_fp(g2.keys(), list(est_tp_matches))       
+
+    assert len(tp) == len(est_tp_matches)
+    assert len(tp) + len(fn) == len(
+        g1.keys()
+    ), f"{len(tp) + len(fn)},{len(g1.keys())}"
+
+    # Report metrics
+    # ---precision and recall
+    display = True
+    false_positives = nodes2[fp] #                
+    true_positives = nodes1[tp] #
+    false_negatives = nodes1[fn] #
+
+    true_positives_e = nodes2[tp_e] 
+    false_positives_e = nodes2[fp]
+    
+    if len(true_positives) + len(false_positives) > 0:
+        report_precision = len(true_positives) / (
+            len(true_positives) + len(false_positives)
+        )  # how many of the positives are real
+    else:
+        print('NAN')
+        report_precision = np.nan
+
+    report_recall = len(true_positives) / (
+        len(true_positives) + len(false_negatives)
+    )  # how many of the actual positives were detected
+    if report_precision + report_recall == 0:
+        report_f1 = -1
+    else:
+        report_f1 = (
+            2
+            * report_precision
+            * report_recall
+            / (report_precision + report_recall)
+        )
+
+    # if display:
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(projection="3d")
+    #     plot_points(ax, true_positives_e, color="lime", alpha=1)
+    #     # plot_points(ax, false_positives_e, color = 'red', alpha=1)
+
+    #     plot_points(ax, true_positives, color="green", alpha=1)
+    #     plot_points(ax, false_positives, color="red", alpha=1)            
+
+    #     plot_points(ax, false_negatives, color="blue", alpha=1)
+    #     plt.show()
+
+def test_gt_between_contig_tp3():    
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
+    node0 = [1, 0, 0]
+    node1 = [2, 0, 0]
+    node2 = [3, 1, 0] # spike
+    node3 = [4, 0, 0]
+    node4 = [5, 0, 0]
+    node5 = [6, 0, 0]
+    node6 = [7, 0, 0]
+    node7 = [8, 0, 0]
+    nodes1 = np.array([node0, node1, node2, node3, node4, node5, node6, node7])
+    edges1 = np.array([[0, 1], [1, 2], [2, 3], [3,4],[4,5],[5,6],[6,7]])
+
+    adj_matrix = create_adjacency_matrix(edges1,nodes1)
+
+    g1 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    node0 = [1, -1, 0]
+    node1 = [2, -1, 0]
+    node2 = [4, -1, 0]
+    node3 = [4.5,-1,0]
+    node4 = [5, -1, 0]
+    nodes2 = np.array([node0, node1, node2, node3, node4])
+    edges2 = np.array([[0, 1], [1, 2], [2, 3],[3,4]])
+
+    adj_matrix = create_adjacency_matrix(edges2,nodes2)
+
+    g2 = create_graph_from_adjacency_matrix(adj_matrix)
+
+    match_thresh = 1
+    t_line = 2
+
+    match_dict, tp_e= match_polyline_graphs(g1, g2, nodes1, nodes2, match_thresh, t_line)
+
+    tp, fn, fp = confusion_matrix(match_dict, g2)    
+       
+    # fp = list(set(g2.keys()) - set(tp_e))
+    
+    est_tp_matches = corresponding_tp(match_dict)
+    # est_fp_matches = corresponding_fp(g2.keys(), list(est_tp_matches))       
+
+    assert len(tp) == len(est_tp_matches)
+    assert len(tp) + len(fn) == len(
+        g1.keys()
+    ), f"{len(tp) + len(fn)},{len(g1.keys())}"
+
+    # Report metrics
+    # ---precision and recall
+    display = True
+    false_positives = nodes2[fp] #                
+    true_positives = nodes1[tp] #
+    false_negatives = nodes1[fn] #
+
+    true_positives_e = nodes2[tp_e] 
+    false_positives_e = nodes2[fp]
+    
+    if len(true_positives) + len(false_positives) > 0:
+        report_precision = len(true_positives) / (
+            len(true_positives) + len(false_positives)
+        )  # how many of the positives are real
+    else:
+        print('NAN')
+        report_precision = np.nan
+
+    report_recall = len(true_positives) / (
+        len(true_positives) + len(false_negatives)
+    )  # how many of the actual positives were detected
+    if report_precision + report_recall == 0:
+        report_f1 = -1
+    else:
+        report_f1 = (
+            2
+            * report_precision
+            * report_recall
+            / (report_precision + report_recall)
+        )
+
+    # if display:
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(projection="3d")
+    #     plot_points(ax, true_positives_e, color="lime", alpha=1)
+    #     # plot_points(ax, false_positives_e, color = 'red', alpha=1)
+
+    #     plot_points(ax, true_positives, color="green", alpha=1)
+    #     plot_points(ax, false_positives, color="red", alpha=1)            
+
+    #     plot_points(ax, false_negatives, color="blue", alpha=1)
+    #     plt.show()
+
+   
+    assert np.array_equal(tp_e,[0,1,2,3,4])
+
+    assert match_dict[0] == 0
+    assert match_dict[1] == 1
+    assert match_dict[2] == -2
+    assert match_dict[3] == 2
+    assert match_dict[4] == 4
+    assert match_dict[5] == -1
+    assert match_dict[6] == -1
+    assert match_dict[7] == -1
+
+    
+
+
+def test_pt_near_line_seg():   
+    line_dist_thresh = 1 
+
+    pt = [0,0,0]    
+    A  = [0,0,0]
+    B  = [1,0,0]    
+
+    criteria = point_near_line_segment(pt, A, B, line_dist_thresh)
+    assert criteria == True 
+
+    pt = [0.5,0,0]    
+    A  = [0,0,0]
+    B  = [1,0,0]    
+
+    criteria = point_near_line_segment(pt, A, B, line_dist_thresh)
+    assert criteria == True 
+
+    pt = [1,0,0]    
+    A  = [0,0,0]
+    B  = [1,0,0]    
+
+    criteria = point_near_line_segment(pt, A, B, line_dist_thresh)
+    assert criteria == True 
+
+    pt = [1.5,0,0]   #  
+    A  = [0,0,0]
+    B  = [1,0,0]    
+
+    criteria = point_near_line_segment(pt, A, B, line_dist_thresh)
+    assert criteria == False 
+
+
+def test_pt_near_line_seg2():   
+    line_dist_thresh = 2
+    
+    pt = [6,0,0]   #  
+    A  = [2,-1,0]
+    B  = [4,-1,0]    
+
+    criteria = point_near_line_segment(pt, A, B, line_dist_thresh)
+    assert criteria == False 
+
+# test_match_graphs()
+# test_match_graphs2()
+# test_match_reversed()
+# test_match_graphs_diff_density()
+# test_match_graphs_fractured()
+# test_match_graphs_fracture_and_branch()
+# test_match_graphs3()
+# test_meta_split_into_branches()
+# test_pt_near_line_seg()
+# test_gt_between_contig_tp2()   
+# test_gt_between_contig_tp3()
+
