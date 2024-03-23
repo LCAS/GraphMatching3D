@@ -86,26 +86,49 @@ def create_dense(nodes, edges, s = 0.5, return_adj=False):
 
 # --- match polyline
 
-def point_near_line_segment(P,A,B,t):
-    x, y, z = P
-    x1, y1, z1 = A
-    x2, y2, z2 = B
+def point_between_points(P, A, B):
+    # Convert points to numpy arrays
+    P = np.array(P)
+    A = np.array(A)
+    B = np.array(B)
+
+    # Calculate vectors AB and AP
+    vector_AB = B - A
+    vector_AP = P - A
+
+    # Calculate dot product
+    dot_product = np.dot(vector_AB, vector_AP)
+
+    # Check if point lies between A and B
+    if 0 <= dot_product <= np.dot(vector_AB, vector_AB):
+        return True
+    else:
+        return False
+
+def point_near_line_segment(P,A,B,t):  
+    P = np.array(P)
+    A = np.array(A)
+    B = np.array(B)
 
     # Calculate the vectors
-    vector_AB = (x2 - x1, y2 - y1, z2 - z1)
-    vector_AC = (x - x1, y - y1, z - z1)
+    vector_AB = B - A
+    vector_AP = P - A
+   
+    # Calculate the projection P onto vector A   
+    scalar_projection = np.dot(vector_AB, vector_AP) / np.dot(vector_AB, vector_AB)
 
-    # Calculate the projection P onto vector AB
-    dot_AB_AB = np.dot(vector_AB, vector_AB)
-    dot_AC_AB = np.dot(vector_AC, vector_AB)
-    scalar = dot_AC_AB / dot_AB_AB
-    projection_P = (vector_AB[0] * scalar, vector_AB[1] * scalar, vector_AB[2] * scalar)
-
+    # Calculate projection of P onto AB
+    projection_P = A + scalar_projection * vector_AB
+            
+    # check if the projected point is between A and B
+    if not point_between_points(projection_P, A, B):
+        return False      
+    
     # Calculate the vector from C to P
-    vector_CP = (vector_AC[0] - projection_P[0], vector_AC[1] - projection_P[1], vector_AC[2] - projection_P[2])
+    vector_CP = P-projection_P   
 
     # Calculate the distance from C to P
-    distance_CP = magnitude(vector_CP)
+    distance_CP = magnitude(vector_CP)     
 
     return distance_CP <= t
 
@@ -115,9 +138,35 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
     Returns a dictionary of the 1-1 matched indices between the two graphs
     """
     match_dict = {}
-    keys = graph1.keys()   
+    # keys = graph1.keys()         
+     
+    # PART 1: compute the cost matrix and find the best 1-1 fit 
+    cost_matrix = np.ones((len(graph1.keys()), len(graph2.keys()))) * 1000
+    for k1 in graph1.keys():        
+        for k2 in graph2.keys():         
+            d = np.linalg.norm(nodes1[k1] - nodes2[k2])            
+            if d <= thresh:
+                cost_matrix[k1][k2] = d 
 
-    # PART 1: find lines between the nodes in the gt
+    # Hungarian            
+    row_ind, col_ind = linear_sum_assignment(cost_matrix, maximize=False) # what if there are unmatched ones, they need to come out as -1
+
+    for i in zip(row_ind,col_ind):
+        k,v = i
+        match_dict[k] = v 
+        
+    for k1 in graph1.keys():        
+        if len(np.unique(cost_matrix[k1,:])) == 1 or k1 not in match_dict.keys():
+            # unmatched
+            match_dict[k1] = -1     
+    
+    # PART 2
+    def filter_dict_by_value(d):
+        return {key: value for key, value in d.items() if value != -1} 
+    
+    tp_dict = filter_dict_by_value(match_dict)
+    tp = list(tp_dict.keys())
+            
     line_segments = [] 
      
     # identify contiguous sections and check if there are points on g2 that match g1 near these lines
@@ -140,35 +189,56 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
             A = nodes1[index_i]
             B = nodes1[index_i1]
 
-            line_segments.append((A,B))           
+            if index_i in tp and index_i1 in tp: # if it is between positive matches
+                line_segments.append((A,B))           
     
     g2_tp = []
     for i in list(graph2.keys()):
         for A,B in line_segments:
-            if point_near_line_segment(nodes2[i], A, B, line_dist_thresh): # distance from polyline
+            if point_near_line_segment(nodes2[i], A, B, line_dist_thresh): # distance from polyline ####
                 g2_tp.append(i)
 
+    for k1 in graph1.keys(): 
+        if len(np.unique(cost_matrix[k1,:])) != 1 and match_dict[k1] not in g2_tp: #it is matched             
+            g2_tp.append(match_dict[k1])
+            # print(k1,match_dict[k1])
     
-    # PART 2: compute the cost matrix and find the best 1-1 fit 
-    cost_matrix = np.ones((len(graph1.keys()), len(graph2.keys()))) * 1000
-    for k1 in graph1.keys():        
-        for k2 in graph2.keys():         
-            d = np.linalg.norm(nodes1[k1] - nodes2[k2])            
-            if d <= thresh:
-                cost_matrix[k1][k2] = d 
+    # check if a G node is within t_line of a line segment of E ****true positves****
+    # -- get contiguous segments of E
+    contiguous_e = []
+    line_segments_e = []
+    
+    e_frag = split_into_fragments(graph2)  # 8 fragments of graph 2 (estimate)
+    
+    for frag in e_frag: 
+        b =  split_into_branches(frag)
+        contiguous_e.extend(b)
+            
+    for i in range(0,len(contiguous_e)):  # 8 contiguous sections
+        contig = contiguous_e[i]
+       
+        for p in range(0,len(contig)-1):
+            index_i = contig[p]
+            index_i1 = contig[p+1]            
 
-          
-                
-    row_ind, col_ind = linear_sum_assignment(cost_matrix, maximize=False) # what if there are unmatched ones, they need to come out as -1
+            A = nodes2[index_i]
+            B = nodes2[index_i1]
 
-    for i in zip(row_ind,col_ind):
-        k,v = i
-        match_dict[k] = v 
-        
+            if index_i in g2_tp and index_i1 in g2_tp: # ***should be TP segments*** 
+                line_segments_e.append((A,B))  
+
+    # -- find elements that fall within t_line
+    g1_tp_line = [] # these are not matched with hungarian but    
+    for i in list(graph1.keys()):
+        for A,B in line_segments_e:
+            criteria = point_near_line_segment(nodes1[i], A, B, line_dist_thresh)             
+            if criteria and i not in g1_tp_line: # distance from polyline
+                g1_tp_line.append(i)           
+    
     for k1 in graph1.keys():        
-        if len(np.unique(cost_matrix[k1,:])) == 1 or k1 not in match_dict.keys():
-            # unmatched
-            match_dict[k1] = -1          
+        if match_dict[k1] == -1:
+            if k1 in g1_tp_line:
+                match_dict[k1] = -2 # matched but not to a node 
                    
     return match_dict, list(set(g2_tp))
 
