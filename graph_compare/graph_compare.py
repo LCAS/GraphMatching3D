@@ -199,7 +199,7 @@ def match_polyline_graphs(graph1, graph2, nodes1, nodes2, thresh, line_dist_thre
                 g2_tp.append(i)
 
     for k1 in graph1.keys(): 
-        if len(np.unique(cost_matrix[k1,:])) != 1 and match_dict[k1] not in g2_tp: #it is matched             
+        if len(np.unique(cost_matrix[k1,:])) != 1 and match_dict[k1] not in g2_tp and match_dict[k1] != -1: #it is matched             
             g2_tp.append(match_dict[k1])
             # print(k1,match_dict[k1])
     
